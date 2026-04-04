@@ -55,3 +55,58 @@ def matrix_factorization(A_sparse, k=10, alpha=0.005, lam=0.01, iterations=1000)
         print(f"Iteration {t:>4} / {iterations} — Loss: {loss:.4f}")
 
     return U, F
+
+
+def split_train_test(rows, cols, ratings, test_ratio=0.2):
+    """
+    Splits ratings into train and test BEFORE training.
+    Returns two sparse matrices: A_train and A_test.
+    """
+    n_users = rows.max() + 1
+    n_movies = cols.max() + 1
+
+    idx = np.arange(len(ratings))
+    train_idx, test_idx = train_test_split(idx, test_size=test_ratio, random_state=42)
+
+    A_train = sp.csr_matrix(
+        (ratings[train_idx], (rows[train_idx], cols[train_idx])),
+        shape=(n_users, n_movies), dtype=np.float32
+    )
+    A_test = sp.csr_matrix(
+        (ratings[test_idx], (rows[test_idx], cols[test_idx])),
+        shape=(n_users, n_movies), dtype=np.float32
+    )
+
+    return A_train, A_test
+
+
+def evaluate_rmse(U, F, A_test_sparse):
+    """
+    Calculate RMSE.
+    """
+    A_test = A_test_sparse.toarray()
+    users, movies = A_test.nonzero()
+    actual = A_test[users, movies]
+    predicted = np.array([U[u] @ F[:, m] for u, m in zip(users, movies)])
+
+    rmse = np.sqrt(np.mean((predicted - actual) ** 2))
+    return rmse
+
+
+if __name__ == "__main__":
+    rows, cols, ratings, n_users, n_movies, user_to_idx, movie_to_idx = load_rating_matrix(
+        "movie_ratings.data"
+    )
+
+    A_train, A_test = split_train_test(rows, cols, ratings, test_ratio=0.2)
+
+    U, F = matrix_factorization(
+        A_train,
+        k=5,
+        alpha=0.0005,
+        lam=0.001,
+        iterations=2000
+    )
+
+    rmse = evaluate_rmse(U, F, A_test)
+    print(f"\nRMSE: {rmse:.4f}")
