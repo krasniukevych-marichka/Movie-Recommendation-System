@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 import scipy.sparse as sp
 from sklearn.model_selection import train_test_split
 
@@ -95,7 +96,7 @@ def evaluate_rmse(U, F, A_test_sparse):
 
 if __name__ == "__main__":
     rows, cols, ratings, n_users, n_movies, user_to_idx, movie_to_idx = load_rating_matrix(
-        "movie_ratings.data"
+        "data/movie_ratings.data"
     )
 
     A_train, A_test = split_train_test(rows, cols, ratings, test_ratio=0.2)
@@ -107,6 +108,12 @@ if __name__ == "__main__":
         lam=0.001,
         iterations=2000
     )
+
+    np.save("models/matrix_U.npy", U)
+    np.save("models/matrix_F.npy", F)
+
+    with open("models/movie_to_idx.pkl", "wb") as f:
+        pickle.dump(movie_to_idx, f)
 
     rmse = evaluate_rmse(U, F, A_test)
     print(f"\nRMSE: {rmse:.4f}")
