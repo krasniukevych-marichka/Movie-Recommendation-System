@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Recommendation System</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f5f5f5; padding: 2rem; color: #222; }
+  h1 { margin-bottom: 1.5rem; font-size: 1.5rem; }
+  .movie-row {
+    display: flex; align-items: center; gap: 1rem;
+    background: white; border-radius: 8px;
+    padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .movie-title { flex: 1; font-size: 0.95rem; }
+  .stars { display: flex; gap: 4px; }
+  .star {
+    font-size: 1.4rem; cursor: pointer;
+    color: #ccc; transition: color 0.1s;
+    line-height: 1; user-select: none;
+  }
+  .star.on { color: #f5a623; }
+  .skip-btn {
+    font-size: 0.8rem; padding: 4px 10px;
+    border: 1px solid #ccc; border-radius: 5px;
+    background: white; cursor: pointer; color: #888;
+    white-space: nowrap;
+  }
+  .skip-btn.active { background: #eee; color: #555; border-color: #aaa; }
+  .movie-row.skipped { opacity: 0.4; }
+  #submit-btn {
+    margin-top: 1.5rem; padding: 0.75rem 2rem;
+    background: #333; color: white; border: none;
+    border-radius: 8px; font-size: 1rem; cursor: pointer;
+  }
+  #submit-btn:hover { background: #111; }
+  #results { margin-top: 2rem; display: none; }
+  #results h2 { margin-bottom: 1rem; }
+  .result-item {
+    background: white; border-radius: 8px;
+    padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .result-rank { font-size: 1.2rem; font-weight: bold; color: #f5a623; min-width: 28px; }
+  .result-title { flex: 1; }
+  .result-score { color: #888; font-size: 0.85rem; }
+  #error { color: red; margin-top: 1rem; display: none; }
+  #loading-msg { color: #888; margin-top: 1rem; display: none; }
+</style>
+</head>
+<body>
+
+<h1>Оціни фільми</h1>
+<div id="movie-list">Завантаження…</div>
+<button id="submit-btn" style="display:none" onclick="submitRatings()">Отримати рекомендації</button>
+<div id="loading-msg">Зачекайте, обробляємо…</div>
+<div id="error"></div>
+
+<div id="results">
+  <h2>Топ-5 рекомендацій</h2>
+  <div id="results-list"></div>
+</div>
+
+<script>
+let movies = [];
+const ratings = {};  
+const skipped = {};  
+
+fetch('/static/selected_movies.json')
+  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+  .then(data => { movies = data; renderList(); })
+  .catch(() => {
+    document.getElementById('movie-list').textContent =
+      'Не вдалось завантажити selected_movies.json. Переконайся, що файл знаходиться поряд з index.html.';
+  });
+
+function renderList() {
+  const container = document.getElementById('movie-list');
+  container.innerHTML = '';
+
+  movies.forEach(movie => {
+    const row = document.createElement('div');
+    row.className = 'movie-row';
+    row.id = 'row-' + movie.id;
+
+    const title = document.createElement('div');
+    title.className = 'movie-title';
+    title.textContent = movie.title;
+
+    const starsDiv = document.createElement('div');
+    starsDiv.className = 'stars';
+    for (let s = 1; s <= 5; s++) {
+      const star = document.createElement('span');
+      star.className = 'star';
+      star.textContent = '★';
+      star.dataset.val = s;
+      star.onclick = () => setRating(movie.id, s);
+      star.id = 'star-' + movie.id + '-' + s;
+      starsDiv.appendChild(star);
+    }
+
+    const skip = document.createElement('button');
+    skip.className = 'skip-btn';
+    skip.textContent = 'Не бачив';
+    skip.id = 'skip-' + movie.id;
+    skip.onclick = () => toggleSkip(movie.id);
+
+    row.appendChild(title);
+    row.appendChild(starsDiv);
+    row.appendChild(skip);
+    container.appendChild(row);
+  });
+
+  document.getElementById('submit-btn').style.display = 'inline-block';
+}
+
+function setRating(movieId, value) {
+  ratings[movieId] = value;
+  delete skipped[movieId];
+
+  for (let s = 1; s <= 5; s++) {
+    const el = document.getElementById('star-' + movieId + '-' + s);
+    if (el) el.className = 'star' + (s <= value ? ' on' : '');
+  }
+  const row = document.getElementById('row-' + movieId);
+  if (row) row.classList.remove('skipped');
+  const skipBtn = document.getElementById('skip-' + movieId);
+  if (skipBtn) skipBtn.classList.remove('active');
+}
+
+function toggleSkip(movieId) {
+  if (skipped[movieId]) {
+    delete skipped[movieId];
+    document.getElementById('row-' + movieId).classList.remove('skipped');
+    document.getElementById('skip-' + movieId).classList.remove('active');
+  } else {
+    skipped[movieId] = true;
+    delete ratings[movieId];
+    for (let s = 1; s <= 5; s++) {
+      const el = document.getElementById('star-' + movieId + '-' + s);
+      if (el) el.className = 'star';
+    }
+    document.getElementById('row-' + movieId).classList.add('skipped');
+    document.getElementById('skip-' + movieId).classList.add('active');
+  }
+}
+
+function submitRatings() {
+  const payload = movies.map(m => ({
+    id: m.id,
+    title: m.title,
+    rating: ratings[m.id] !== undefined ? ratings[m.id] : null,
+  }));
+
+  document.getElementById('loading-msg').style.display = 'block';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+
+  fetch('/recommend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+    .then(r => { if (!r.ok) throw new Error('Сервер повернув помилку ' + r.status); return r.json(); })
+    .then(data => {
+      document.getElementById('loading-msg').style.display = 'none';
+      showResults(data);
+    })
+    .catch(err => {
+      document.getElementById('loading-msg').style.display = 'none';
+      const errEl = document.getElementById('error');
+      errEl.textContent = err.message + '. Переконайся, що Flask-сервер запущено.';
+      errEl.style.display = 'block';
+    });
+}
+
+function showResults(data) {
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+
+  data.slice(0, 5).forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'result-item';
+    div.innerHTML =
+      '<div class="result-rank">' + (i + 1) + '</div>' +
+      '<div class="result-title">' + item.title + '</div>' +
+      '<div class="result-score">★ ' + Number(item.predicted_rating).toFixed(2) + '</div>';
+    list.appendChild(div);
+  });
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
