@@ -1,199 +1,350 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Movie Recommendation System</title>
+<title>Movie Recommender</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: sans-serif; background: #f5f5f5; padding: 2rem; color: #222; }
-  h1 { margin-bottom: 1.5rem; font-size: 1.5rem; }
-  .movie-row {
-    display: flex; align-items: center; gap: 1rem;
-    background: white; border-radius: 8px;
-    padding: 0.75rem 1rem; margin-bottom: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  :root {
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --accent: #8b5cf6;
+    --accent-hover: #7c3aed;
+    --star-color: #fbbf24;
+    --text-main: #f8fafc;
+    --text-dim: #94a3b8;
   }
-  .movie-title { flex: 1; font-size: 0.95rem; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background-color: var(--bg-color);
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(20, 184, 166, 0.1) 0px, transparent 50%);
+    color: var(--text-main);
+    line-height: 1.6;
+    padding: 2rem 1rem;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(to right, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+
+  .subtitle { color: var(--text-dim); font-size: 1.1rem; }
+
+  /* Grid Layout */
+  #movie-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Card Design */
+  .card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    background: var(--card-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1rem 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeIn 0.5s ease backwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:hover {
+    transform: scale(1.02);
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+  }
+
+  .card.skipped { opacity: 0.4; filter: grayscale(1); }
+  .card.rated { border-left: 4px solid var(--accent); }
+
+  .card-title {
+    flex: 1;
+    font-weight: 500;
+    font-size: 1rem;
+    color: var(--text-main);
+  }
+
+  /* Stars */
   .stars { display: flex; gap: 4px; }
   .star {
-    font-size: 1.4rem; cursor: pointer;
-    color: #ccc; transition: color 0.1s;
-    line-height: 1; user-select: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #334155;
+    transition: transform 0.2s, color 0.2s;
   }
-  .star.on { color: #f5a623; }
-  .skip-btn {
-    font-size: 0.8rem; padding: 4px 10px;
-    border: 1px solid #ccc; border-radius: 5px;
-    background: white; cursor: pointer; color: #888;
-    white-space: nowrap;
+  .star:hover { transform: scale(1.2); }
+  .star.on { color: var(--star-color); text-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
+
+  /* Buttons */
+  .skip {
+    background: transparent;
+    border: 1px solid #334155;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
   }
-  .skip-btn.active { background: #eee; color: #555; border-color: #aaa; }
-  .movie-row.skipped { opacity: 0.4; }
+  .skip.active { background: #ef4444; color: white; border-color: #ef4444; }
+  .skip:hover:not(.active) { border-color: var(--text-dim); color: #fff; }
+
   #submit-btn {
-    margin-top: 1.5rem; padding: 0.75rem 2rem;
-    background: #333; color: white; border: none;
-    border-radius: 8px; font-size: 1rem; cursor: pointer;
+    display: none;
+    margin: 3rem auto 0;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), #7c3aed);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.5);
+    transition: all 0.3s;
   }
-  #submit-btn:hover { background: #111; }
-  #results { margin-top: 2rem; display: none; }
-  #results h2 { margin-bottom: 1rem; }
+
+  #submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 25px -5px rgba(139, 92, 246, 0.6);
+  }
+
+  #submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* Results Section */
+  #results {
+    display: none;
+    margin-top: 4rem;
+    padding: 2rem;
+    background: rgba(15, 23, 42, 0.8);
+    border-radius: 24px;
+    border: 1px solid var(--accent);
+  }
+
   .result-item {
-    background: white; border-radius: 8px;
-    padding: 0.75rem 1rem; margin-bottom: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    display: flex; align-items: center; gap: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
   }
-  .result-rank { font-size: 1.2rem; font-weight: bold; color: #f5a623; min-width: 28px; }
-  .result-title { flex: 1; }
-  .result-score { color: #888; font-size: 0.85rem; }
-  #error { color: red; margin-top: 1rem; display: none; }
-  #loading-msg { color: #888; margin-top: 1rem; display: none; }
+
+  .result-info { display: flex; align-items: center; gap: 1rem; }
+  .rank { 
+    background: var(--accent); 
+    width: 28px; height: 28px; 
+    border-radius: 50%; 
+    display: grid; place-items: center; 
+    font-size: 0.8rem; font-weight: bold;
+  }
+
+  #error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-top: 1rem;
+    text-align: center;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+
+  @media (max-width: 600px) {
+    .card { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    .stars { width: 100%; justify-content: space-between; }
+  }
 </style>
 </head>
 <body>
 
-<h1>Оціни фільми</h1>
-<div id="movie-list">Завантаження…</div>
-<button id="submit-btn" style="display:none" onclick="submitRatings()">Отримати рекомендації</button>
-<div id="loading-msg">Зачекайте, обробляємо…</div>
-<div id="error"></div>
+<div class="container">
+  <header>
+    <h1>Movie Recommender</h1>
+    <p class="subtitle">Rate these titles to discover your next favorite film</p>
+  </header>
 
-<div id="results">
-  <h2>Топ-5 рекомендацій</h2>
-  <div id="results-list"></div>
+  <div id="movie-list">Loading your library...</div>
+
+  <button id="submit-btn" onclick="submitRatings()">Get My Recommendations</button>
+  
+  <div id="error"></div>
+
+  <div id="results">
+    <h2 style="margin-bottom: 1.5rem; text-align: center;">🍿 Recommended for You</h2>
+    <div id="results-list"></div>
+    <div style="text-align: center;">
+      <button id="reset-btn" onclick="resetUI()" style="margin-top: 2rem; background: none; border: none; color: var(--text-dim); cursor: pointer; text-decoration: underline;">Reset & Rate Again</button>
+    </div>
+  </div>
 </div>
 
 <script>
-let movies = [];
-const ratings = {};  
-const skipped = {};  
+  let movies = [];
+  const ratings = {};
+  const skipped = {};
 
-fetch('/static/selected_movies.json')
-  .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-  .then(data => { movies = data; renderList(); })
-  .catch(() => {
-    document.getElementById('movie-list').textContent =
-      'Не вдалось завантажити selected_movies.json. Переконайся, що файл знаходиться поряд з index.html.';
-  });
-
-function renderList() {
-  const container = document.getElementById('movie-list');
-  container.innerHTML = '';
-
-  movies.forEach(movie => {
-    const row = document.createElement('div');
-    row.className = 'movie-row';
-    row.id = 'row-' + movie.id;
-
-    const title = document.createElement('div');
-    title.className = 'movie-title';
-    title.textContent = movie.title;
-
-    const starsDiv = document.createElement('div');
-    starsDiv.className = 'stars';
-    for (let s = 1; s <= 5; s++) {
-      const star = document.createElement('span');
-      star.className = 'star';
-      star.textContent = '★';
-      star.dataset.val = s;
-      star.onclick = () => setRating(movie.id, s);
-      star.id = 'star-' + movie.id + '-' + s;
-      starsDiv.appendChild(star);
-    }
-
-    const skip = document.createElement('button');
-    skip.className = 'skip-btn';
-    skip.textContent = 'Не бачив';
-    skip.id = 'skip-' + movie.id;
-    skip.onclick = () => toggleSkip(movie.id);
-
-    row.appendChild(title);
-    row.appendChild(starsDiv);
-    row.appendChild(skip);
-    container.appendChild(row);
-  });
-
-  document.getElementById('submit-btn').style.display = 'inline-block';
-}
-
-function setRating(movieId, value) {
-  ratings[movieId] = value;
-  delete skipped[movieId];
-
-  for (let s = 1; s <= 5; s++) {
-    const el = document.getElementById('star-' + movieId + '-' + s);
-    if (el) el.className = 'star' + (s <= value ? ' on' : '');
-  }
-  const row = document.getElementById('row-' + movieId);
-  if (row) row.classList.remove('skipped');
-  const skipBtn = document.getElementById('skip-' + movieId);
-  if (skipBtn) skipBtn.classList.remove('active');
-}
-
-function toggleSkip(movieId) {
-  if (skipped[movieId]) {
-    delete skipped[movieId];
-    document.getElementById('row-' + movieId).classList.remove('skipped');
-    document.getElementById('skip-' + movieId).classList.remove('active');
-  } else {
-    skipped[movieId] = true;
-    delete ratings[movieId];
-    for (let s = 1; s <= 5; s++) {
-      const el = document.getElementById('star-' + movieId + '-' + s);
-      if (el) el.className = 'star';
-    }
-    document.getElementById('row-' + movieId).classList.add('skipped');
-    document.getElementById('skip-' + movieId).classList.add('active');
-  }
-}
-
-function submitRatings() {
-  const payload = movies.map(m => ({
-    id: m.id,
-    title: m.title,
-    rating: ratings[m.id] !== undefined ? ratings[m.id] : null,
-  }));
-
-  document.getElementById('loading-msg').style.display = 'block';
-  document.getElementById('error').style.display = 'none';
-  document.getElementById('results').style.display = 'none';
-
-  fetch('/recommend', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-    .then(r => { if (!r.ok) throw new Error('Сервер повернув помилку ' + r.status); return r.json(); })
-    .then(data => {
-      document.getElementById('loading-msg').style.display = 'none';
-      showResults(data);
-    })
-    .catch(err => {
-      document.getElementById('loading-msg').style.display = 'none';
-      const errEl = document.getElementById('error');
-      errEl.textContent = err.message + '. Переконайся, що Flask-сервер запущено.';
-      errEl.style.display = 'block';
+  // 1. Load
+  fetch('/static/selected_movies.json')
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => { movies = data; render(); })
+    .catch(() => {
+      document.getElementById('movie-list').textContent = 'Error: Could not load the movie database.';
     });
-}
 
-function showResults(data) {
-  const list = document.getElementById('results-list');
-  list.innerHTML = '';
+  // 2. Render
+  function render() {
+    const el = document.getElementById('movie-list');
+    el.innerHTML = '';
 
-  data.slice(0, 5).forEach((item, i) => {
-    const div = document.createElement('div');
-    div.className = 'result-item';
-    div.innerHTML =
-      '<div class="result-rank">' + (i + 1) + '</div>' +
-      '<div class="result-title">' + item.title + '</div>' +
-      '<div class="result-score">★ ' + Number(item.predicted_rating).toFixed(2) + '</div>';
-    list.appendChild(div);
-  });
+    movies.forEach((m, index) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = 'row-' + m.id;
+      card.style.animationDelay = (index * 0.05) + 's';
 
-  document.getElementById('results').style.display = 'block';
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-}
+      const title = document.createElement('div');
+      title.className = 'card-title';
+      title.textContent = m.title;
+
+      const stars = document.createElement('div');
+      stars.className = 'stars';
+      for (let s = 1; s <= 5; s++) {
+        const star = document.createElement('span');
+        star.className = 'star';
+        star.innerHTML = '✦'; 
+        star.id = 'star-' + m.id + '-' + s;
+        star.onclick = () => rate(m.id, s);
+        stars.appendChild(star);
+      }
+
+      const skip = document.createElement('button');
+      skip.className = 'skip';
+      skip.id = 'skip-' + m.id;
+      skip.textContent = "Haven't seen";
+      skip.onclick = () => toggleSkip(m.id);
+
+      card.append(title, stars, skip);
+      el.appendChild(card);
+    });
+
+    document.getElementById('submit-btn').style.display = 'block';
+  }
+
+  function rate(id, val) {
+    ratings[id] = val;
+    delete skipped[id];
+    for (let s = 1; s <= 5; s++) {
+      const el = document.getElementById('star-' + id + '-' + s);
+      if (el) el.className = 'star' + (s <= val ? ' on' : '');
+    }
+    document.getElementById('row-' + id).className = 'card rated';
+    document.getElementById('skip-' + id).classList.remove('active');
+  }
+
+  function toggleSkip(id) {
+    if (skipped[id]) {
+      delete skipped[id];
+      document.getElementById('row-' + id).className = 'card';
+      document.getElementById('skip-' + id).classList.remove('active');
+    } else {
+      skipped[id] = true;
+      delete ratings[id];
+      for (let s = 1; s <= 5; s++) {
+        const el = document.getElementById('star-' + id + '-' + s);
+        if (el) el.className = 'star';
+      }
+      document.getElementById('row-' + id).className = 'card skipped';
+      document.getElementById('skip-' + id).classList.add('active');
+    }
+  }
+
+  function submitRatings() {
+    const payload = movies.map(m => ({
+      id: m.id,
+      title: m.title,
+      rating: ratings[m.id] ?? null,
+    }));
+
+    const btn = document.getElementById('submit-btn');
+    const errEl = document.getElementById('error');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing preferences...';
+    errEl.style.display = 'none';
+
+    fetch('/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(r => { if (!r.ok) throw new Error('Server error ' + r.status); return r.json(); })
+      .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Get My Recommendations';
+        showResults(data);
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Try Again';
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      });
+  }
+
+  function showResults(data) {
+    const list = document.getElementById('results-list');
+    list.innerHTML = '';
+    data.slice(0, 5).forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'result-item';
+      div.innerHTML = `
+        <div class="result-info">
+          <span class="rank">${i+1}</span>
+          <span class="result-title">${item.title}</span>
+        </div>
+        <div style="color: var(--star-color); font-weight: bold;">
+          ${Number(item.predicted_rating).toFixed(1)} <span style="font-size: 0.8rem; color: var(--text-dim)">/ 5</span>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function resetUI() {
+    Object.keys(ratings).forEach(k => delete ratings[k]);
+    Object.keys(skipped).forEach(k => delete skipped[k]);
+    document.getElementById('results').style.display = 'none';
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 </script>
 </body>
 </html>
