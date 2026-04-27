@@ -86,9 +86,47 @@ $$\text{RMSE} = \sqrt{ \frac{1}{|\Omega_{\text{test}}|} \sum_{(i,j) \in \Omega_{
 
 ## Usage
 
+### 1. Clone the repository
+
 ```bash
-python recommendation_system.py
+git clone https://github.com/krasniukevych-marichka/Movie-Recommendation-System.git
+cd Movie-Recommendation-System
 ```
+
+### 2. Install dependencies
+
+```bash
+pip install numpy pandas scipy scikit-learn flask
+```
+
+### 3. (Optional) Retrain the model
+
+If you want to retrain the model from scratch instead of using the pre-saved matrices in `models/`:
+
+```bash
+python algorithm.py
+```
+
+This will overwrite `models/matrix_U.npy`, `models/matrix_F.npy`, and `models/movie_to_idx.pkl`.
+
+### 4. Run the web application
+
+```bash
+python app.py
+```
+
+Then open your browser at:
+
+```
+http://127.0.0.1:5000
+```
+
+### 5. How it works
+
+1. The app loads the pre-trained factor matrices from `models/`.
+2. On the main page, you are shown a selection of movies from `static/selected_movies.json`.
+3. Rate the movies you have seen.
+4. Submit your ratings — the system predicts scores for unseen movies and returns personalized recommendations.
 
 ---
 
