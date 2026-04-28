@@ -86,9 +86,17 @@ $$\text{RMSE} = \sqrt{ \frac{1}{|\Omega_{\text{test}}|} \sum_{(i,j) \in \Omega_{
 
 ## Usage
 
-```bash
+To use the Movie Recommender System:
+
+1. Clone the repository to your local machine.
+
+2. Run the app using ```bash
 python recommendation_system.py
-```
+```.
+
+4. Open your web browser and access the provided URL to interact with the application: http://127.0.0.1:5000/.
+
+5. Rate 20 movies and get top 5 recommendations.
 
 ---
 
